@@ -60,7 +60,9 @@ LOG_FILE = os.getenv("LOG_FILE") if os.getenv("LOG_FILE", "") else None
 #    'scrapy.extensions.telnet.TelnetConsole': None,
 # }
 
-ITEM_PIPELINES = {}
+ITEM_PIPELINES = {
+    "pipelines.ExLatPipeline": 300,
+}
 
 PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
 
