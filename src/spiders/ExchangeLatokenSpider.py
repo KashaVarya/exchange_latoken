@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
 import re
+import xml.etree.ElementTree
 
 import scrapy
 
@@ -12,6 +13,7 @@ class ExchangeLatokenSpider(scrapy.Spider):
     logo = 'https://cms.latoken.com/api/currency/v1/info/'
     ieo = 'https://api.latoken.com/v2/ieo/active?size=2000&page=0'
     currency = 'https://cms.latoken.com/api/ieo/v1/projects/?crowd_sale_id={}&format=json'
+    is_desc = True
 
     @classmethod
     def from_crawler(cls, crawler, *args, **kwargs):
@@ -74,10 +76,10 @@ class ExchangeLatokenSpider(scrapy.Spider):
         title_symbol = data['url']
 
         price_currency = data['token_info'][0]['price_eth']
-        price = re.search(r'([.\d])', price_currency)
-        price = price.groups()[1] if price and len(price.groups()) > 1 else ''
-        cur = re.search(r'([^\d])', price_currency)
-        cur = cur.groups()[1] if cur and len(cur.groups()) > 1 else '$'
+        price = re.search(r'([.\d]+)', price_currency)
+        price = price.groups()[0] if price else ''
+        cur = re.search(r'([^\d^.]+)', price_currency)
+        cur = cur.groups()[0].strip() if cur else '$'
 
         currencies = {
             '€': 'EUR',
@@ -99,37 +101,90 @@ class ExchangeLatokenSpider(scrapy.Spider):
                 break
 
         whitepaper = data['whitepaper']
-        long_description = data['overview']
+        overview = data['overview'].split('\r\n')
+        long_description = ''
+        website = ''
+        facebook = ''
+        linkedin = ''
+        telegram = ''
+        twitter = ''
 
-        # website, facebook, linkedin, telegram, twitter
+        for parag in overview:
+            if '<b>Visit' in parag:
+                website = self.get_href(parag)
+            elif '<b>Facebook' in parag:
+                facebook = self.get_href(parag)
+            elif '<b>LinkedIn' in parag:
+                linkedin = self.get_href(parag)
+            elif '<b>Telegram' in parag:
+                telegram = self.get_href(parag)
+            elif '<b>Twitter' in parag:
+                twitter = self.get_href(parag)
+            elif self.is_desc:
+                long_description += parag
+
+        long_description = re.sub(r'<.*?>', '', long_description)
+        self.is_desc = True
 
         videos = data['slider'][0]['slider_item']
         video = ''
         for item in videos:
             if item['item_type'] == 'video':
                 video = item['video']
+                break
         video_image = ''
         if video:
             if '=' in video:
                 token = re.search(r'=(.+)', video)
             else:
                 token = re.search(r'https://youtu\.be/(.+)', video)
-            if token and len(token.groups()) > 1:
+            if token:
                 video_image = 'https://i.ytimg.com/vi/{}/maxresdefault.jpg'
-                video_image = video_image.format(token.groups()[1])
+                video_image = video_image.format(token.groups()[0])
 
-        self.logger.info('icon ' + icon)
-        self.logger.info('thumbnail_image ' + thumbnail_image)
-        self.logger.info('title ' + title)
-        self.logger.info('title_symbol ' + title_symbol)
-        self.logger.info('price ' + price)
-        self.logger.info('currency ' + currency)
-        self.logger.info('currency_symbol ' + currency_symbol)
-        self.logger.info('whitepaper' + whitepaper)
-        self.logger.info('long_description' + long_description)
-        self.logger.info('video' + video)
-        self.logger.info('video_image' + video_image)
+        yield ExLatItem(
+            icon=icon,
+            thumbnail_image=thumbnail_image,
+            title=title,
+            title_symbol=title_symbol,
+            price=price,
+            currency=currency,
+            currency_symbol=currency_symbol,
+            whitepaper=whitepaper,
+            long_description=long_description,
+            website=website,
+            facebook=facebook,
+            linkedin=linkedin,
+            telegram=telegram,
+            twitter=twitter,
+            video=video,
+            video_image=video_image,
+        )
 
+        # self.logger.info('icon ' + icon)
+        # self.logger.info('thumbnail_image ' + thumbnail_image)
+        # self.logger.info('title ' + title)
+        # self.logger.info('title_symbol ' + title_symbol)
+        # self.logger.info('price_currency ' + price_currency)
+        # self.logger.info('price ' + price)
+        # self.logger.info('cur ' + cur)
+        # self.logger.info('currency ' + currency)
+        # self.logger.info('currency_symbol ' + currency_symbol)
+        # self.logger.info('whitepaper ' + str(whitepaper))
+        # self.logger.info('overview ' + str(overview))
+        # self.logger.info('long_description ' + long_description)
+        # self.logger.info('website ' + website)
+        # self.logger.info('facebook ' + facebook)
+        # self.logger.info('linkedin ' + linkedin)
+        # self.logger.info('telegram ' + telegram)
+        # self.logger.info('twitter ' + twitter)
+        # self.logger.info('video ' + video)
+        # self.logger.info('video_image ' + video_image)
+
+    def get_href(self, parag):
+        self.is_desc = False
+        source = re.search(r'href=\"(.+?)\"', parag)
+        return source[0] if source else ''
 
     def spider_closed(self):
         pass
