@@ -1,16 +1,5 @@
 version: '3'
 services:
-  rabbitmq:
-    env_file: ./.env
-    build: ./docker/rabbitmq
-    ports:
-      - '${RABBITMQ_NODE_HOST_PORT}:5672'
-      - '${RABBITMQ_MANAGEMENT_HTTP_HOST_PORT}:15672'
-      - '${RABBITMQ_MANAGEMENT_HTTPS_HOST_PORT}:15671'
-    privileged: true
-    volumes:
-      - '${DATA_PATH_HOST}/rabbitmq:/var/lib/rabbitmq/mnesia'
-
   scrapy:
     env_file: ./.env
     build:

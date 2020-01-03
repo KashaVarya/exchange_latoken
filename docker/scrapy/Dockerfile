@@ -13,9 +13,10 @@ ENTRYPOINT ["dumb-init", "--"]
 RUN pip install --no-cache-dir pipenv
 
 COPY src/Pipfile .
-RUN pipenv lock && pipenv install --dev --pre --system
+RUN pipenv lock && pipenv install --system
 
 WORKDIR /var/app
+COPY src .
 
 # change this to actual scraper command if necessary
-CMD ["sh", "-c", "python"]
+CMD ["sh", "-c", "python run.py"]
